@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>EKO TRADING AI — XAUUSD Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0a0c10;
+    --surface:  #111318;
+    --border:   #1e2230;
+    --gold:     #f0b429;
+    --gold-dim: #a07820;
+    --green:    #22c55e;
+    --red:      #ef4444;
+    --blue:     #3b82f6;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --panel:    #0d1017;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+
+  .badge-gold { color: var(--gold); border-color: var(--gold-dim); background: #1a1200; }
+  .badge-green { color: var(--green); border-color: #166534; background: #052010; }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    flex-direction: column; /* mobile: stacked */
+  }
+
+  @media (min-width: 900px) {
+    .main { flex-direction: row; }
+  }
+
+  /* ── CHART PANEL ── */
+  .chart-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-height: 0;
+  }
+
+  .panel-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    height: 36px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .tf-buttons {
+    display: flex;
+    gap: 4px;
+  }
+
+  .tf-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tf-btn:hover, .tf-btn.active {
+    border-color: var(--gold-dim);
+    color: var(--gold);
+    background: #1a1200;
+  }
+
+  #tv-widget {
+    flex: 1;
+    min-height: 0;
+  }
+
+  #tv-widget iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  /* ── AI PANEL ── */
+  .ai-panel {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    min-height: 0;
+    height: 50vh;
+  }
+
+  @media (min-width: 900px) {
+    .ai-panel {
+      width: 360px;
+      height: auto;
+      flex-shrink: 0;
+    }
+  }
+
+  /* ── MESSAGES ── */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+  }
+
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 94%;
+    animation: fadeUp 0.2s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.user { align-self: flex-end; }
+  .msg.assistant { align-self: flex-start; }
+
+  .msg-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .msg.user .msg-label { text-align: right; }
+
+  .msg-bubble {
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .msg.user .msg-bubble {
+    background: #1a1500;
+    border: 1px solid var(--gold-dim);
+    color: #fde68a;
+    border-radius: 10px 10px 2px 10px;
+  }
+
+  .msg.assistant .msg-bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px 10px 10px 2px;
+  }
+
+  .msg.assistant .msg-bubble strong {
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .msg.assistant .msg-bubble .bull { color: var(--green); }
+  .msg.assistant .msg-bubble .bear { color: var(--red); }
+
+  /* Quick prompts */
+  .quick-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 12px 8px;
+  }
+
+  .qp-btn {
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .qp-btn:hover {
+    border-color: var(--gold-dim);
+    color: var(--gold);
+    background: #1a1200;
+  }
+
+  /* ── INPUT AREA ── */
+  .input-area {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .context-row {
+    display: flex;
+    gap: 6px;
+    padding: 0 12px 6px;
+    flex-shrink: 0;
+  }
+
+  .ctx-select {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 4px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .ctx-select:focus { border-color: var(--gold-dim); color: var(--gold); }
+
+  textarea {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    resize: none;
+    outline: none;
+    line-height: 1.4;
+    max-height: 100px;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus { border-color: var(--gold-dim); }
+  textarea::placeholder { color: var(--muted); }
+
+  .send-btn {
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    border: none;
+    background: var(--gold);
+    color: #000;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+
+  .send-btn:hover { background: #fbbf24; transform: scale(1.05); }
+  .send-btn:disabled { background: var(--border); color: var(--muted); transform: none; cursor: not-allowed; }
+
+  /* typing indicator */
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 9px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px 10px 10px 2px;
+    width: fit-content;
+  }
+
+  .typing-indicator span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  /* welcome card */
+  .welcome-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .welcome-card h3 {
+    color: var(--gold);
+    font-size: 13px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  /* mobile toggle */
+  .toggle-view {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    padding: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .toggle-btn.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+    background: #0d0f00;
+  }
+
+  @media (min-width: 900px) {
+    .toggle-view { display: none; }
+    .chart-panel { display: flex !important; }
+    .ai-panel { display: flex !important; height: auto; }
+  }
+
+  /* mobile show/hide */
+  .hidden-mobile { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-dot"></div>
+      EKO · TRADING AI
+    </div>
+    <div class="header-right">
+      <span class="badge badge-gold">XAUUSD</span>
+      <span class="badge badge-green" id="session-badge">LOADING...</span>
+    </div>
+  </header>
+
+  <!-- MOBILE TOGGLE -->
+  <div class="toggle-view">
+    <button class="toggle-btn active" id="tab-chart" onclick="showTab('chart')">📈 Chart</button>
+    <button class="toggle-btn" id="tab-ai" onclick="showTab('ai')">🤖 AI Analyst</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- CHART PANEL -->
+    <div class="chart-panel" id="chart-panel">
+      <div class="panel-bar">
+        <span class="panel-title">TradingView · Live Chart</span>
+        <div class="tf-buttons">
+          <button class="tf-btn active" onclick="changeInterval('15')">M15</button>
+          <button class="tf-btn" onclick="changeInterval('60')">H1</button>
+          <button class="tf-btn" onclick="changeInterval('240')">H4</button>
+          <button class="tf-btn" onclick="changeInterval('D')">D1</button>
+        </div>
+      </div>
+      <div id="tv-widget"></div>
+    </div>
+
+    <!-- AI PANEL -->
+    <div class="ai-panel" id="ai-panel">
+      <div class="panel-bar">
+        <span class="panel-title">🤖 AI Market Analyst</span>
+        <span class="badge badge-gold" style="font-size:9px;">Claude Sonnet</span>
+      </div>
+
+      <div class="messages" id="messages">
+        <div class="welcome-card">
+          <h3>⚡ Selamat datang, Eko!</h3>
+          Saya siap bantu analisa XAUUSD pakai strategi <strong>Supertrend + SnR</strong> kamu.<br><br>
+          Tanya setup entry, konfirmasi tren, level SnR, atau kondisi market sekarang. Gunakan quick prompt di bawah atau ketik sendiri.
+        </div>
+      </div>
+
+      <!-- Quick Prompts -->
+      <div class="quick-prompts" id="quick-prompts">
+        <button class="qp-btn" onclick="quickSend('Analisa tren XAUUSD saat ini. Apakah bullish atau bearish?')">📊 Analisa Tren</button>
+        <button class="qp-btn" onclick="quickSend('Konfirmasi setup entry buy XAUUSD dengan Supertrend + SnR. Apakah valid?')">✅ Konfirmasi Entry</button>
+        <button class="qp-btn" onclick="quickSend('Berikan level Support dan Resistance kunci XAUUSD untuk hari ini.')">🎯 Level SnR</button>
+        <button class="qp-btn" onclick="quickSend('Apakah sekarang waktu yang baik untuk trading? Cek sesi London/NY.')">⏰ Sesi Trading</button>
+        <button class="qp-btn" onclick="quickSend('Berikan rekomendasi SL dan TP untuk posisi buy XAUUSD sekarang.')">📐 SL & TP</button>
+        <button class="qp-btn" onclick="quickSend('Analisa psikologi trading: bagaimana hindari revenge trading di XAUUSD?')">🧠 Psikologi</button>
+      </div>
+
+      <!-- Context selectors -->
+      <div class="context-row">
+        <select class="ctx-select" id="ctx-tf">
+          <option value="M15">Timeframe: M15</option>
+          <option value="H1">Timeframe: H1</option>
+          <option value="H4">Timeframe: H4</option>
+          <option value="D1">Timeframe: D1</option>
+        </select>
+        <select class="ctx-select" id="ctx-bias">
+          <option value="netral">Bias: Netral</option>
+          <option value="bullish">Bias: Bullish</option>
+          <option value="bearish">Bias: Bearish</option>
+        </select>
+      </div>
+
+      <!-- Input -->
+      <div class="input-area">
+        <textarea id="user-input" placeholder="Tanya analisa market, entry, SnR..." rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TradingView Widget -->
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+
+// ── TradingView ──────────────────────────────────────────────
+let tvWidget;
+
+function initChart(interval = '15') {
+  document.getElementById('tv-widget').innerHTML = '';
+  tvWidget = new TradingView.widget({
+    container_id: 'tv-widget',
+    width: '100%',
+    height: '100%',
+    symbol: 'OANDA:XAUUSD',
+    interval: interval,
+    timezone: 'Asia/Jakarta',
+    theme: 'dark',
+    style: '1',
+    locale: 'id',
+    toolbar_bg: '#0d1017',
+    enable_publishing: false,
+    hide_top_toolbar: false,
+    hide_legend: false,
+    save_image: false,
+    studies: [
+      { id: 'STD;Supertrend', inputs: { period: 10, factor: 3 } }
+    ],
+    overrides: {
+      'paneProperties.background': '#0a0c10',
+      'paneProperties.backgroundType': 'solid',
+      'scalesProperties.textColor': '#64748b',
+      'scalesProperties.lineColor': '#1e2230',
+    },
+  });
+}
+
+function changeInterval(tf) {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  // Update context selector
+  const map = {'15':'M15','60':'H1','240':'H4','D':'D1'};
+  document.getElementById('ctx-tf').value = map[tf] || 'M15';
+  initChart(tf);
+}
+
+initChart();
+
+// ── Session Badge ─────────────────────────────────────────────
+function updateSession() {
+  const now = new Date();
+  const wib = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const h = wib.getHours();
+  let session, color;
+  if (h >= 8 && h < 17)       { session = '🟢 LONDON'; color = '#22c55e'; }
+  else if (h >= 19 && h < 24) { session = '🔵 NEW YORK'; color = '#3b82f6'; }
+  else if (h >= 1 && h < 8)   { session = '🟡 TOKYO'; color = '#f0b429'; }
+  else                          { session = '⚫ OFF-SESSION'; color = '#64748b'; }
+  const badge = document.getElementById('session-badge');
+  badge.textContent = session;
+  badge.style.color = color;
+}
+updateSession();
+setInterval(updateSession, 60000);
+
+// ── Mobile Tabs ───────────────────────────────────────────────
+function showTab(tab) {
+  const chart = document.getElementById('chart-panel');
+  const ai    = document.getElementById('ai-panel');
+  document.getElementById('tab-chart').classList.toggle('active', tab === 'chart');
+  document.getElementById('tab-ai').classList.toggle('active', tab === 'ai');
+  if (window.innerWidth < 900) {
+    chart.style.display = tab === 'chart' ? 'flex' : 'none';
+    ai.style.display    = tab === 'ai'    ? 'flex' : 'none';
+  }
+}
+// init mobile state
+if (window.innerWidth < 900) {
+  document.getElementById('ai-panel').style.display = 'none';
+}
+
+// ── Chat ──────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `Kamu adalah AI Trading Analyst bernama "EKO-AI" yang spesialis di XAUUSD (Gold). Kamu membantu trader bernama Eko, trader forex Indonesia yang trading sejak 2017 di akun XM micro.
+
+Strategi utama Eko: Supertrend (10,3) + Support & Resistance (SnR) di TradingView, chart XAUUSD, timeframe utama M15 dengan konfirmasi H1/H4. Sesi trading terbaik Eko: 07:00–12:00 WIB (London open).
+
+Cara kamu menjawab:
+- Selalu dalam Bahasa Indonesia yang ringkas dan jelas
+- Gunakan format terstruktur: **TREN**, **ENTRY**, **SL**, **TP**, **CATATAN**
+- Berikan analisa konkret, bukan hanya teori
+- Ingatkan tentang manajemen risiko (max 1-2% per trade, lot 0.01)
+- Jika ditanya tren, analisa berdasarkan kondisi umum gold dan konteks yang diberikan
+- Selalu tanyakan atau pertimbangkan timeframe dan bias yang sedang aktif
+- Bedakan sinyal BUY vs SELL dengan jelas
+- Ingatkan untuk skip trading jika market ranging/sideways
+
+Saat user menyebut konteks (bias, timeframe), gunakan itu dalam analisa.`;
+
+let chatHistory = [];
+
+async function sendMessage(overrideText) {
+  const input = document.getElementById('user-input');
+  const tf    = document.getElementById('ctx-tf').value;
+  const bias  = document.getElementById('ctx-bias').value;
+  const text  = overrideText || input.value.trim();
+  if (!text) return;
+
+  // append context
+  const fullMsg = `[TF: ${tf} | Bias: ${bias}]\n${text}`;
+
+  addMessage('user', text);
+  input.value = '';
+  autoResize(input);
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('quick-prompts').style.display = 'none';
+
+  const typingEl = showTyping();
+  chatHistory.push({ role: 'user', content: fullMsg });
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: chatHistory,
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.content?.map(b => b.text || '').join('') || '⚠️ Tidak ada respons.';
+
+    typingEl.remove();
+    chatHistory.push({ role: 'assistant', content: reply });
+    addMessage('assistant', reply);
+
+  } catch (err) {
+    typingEl.remove();
+    addMessage('assistant', '⚠️ Gagal terhubung ke AI. Cek koneksi internet kamu.');
+  }
+
+  document.getElementById('send-btn').disabled = false;
+}
+
+function quickSend(text) {
+  document.getElementById('user-input').value = text;
+  sendMessage();
+}
+
+function addMessage(role, text) {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'user' ? 'Eko' : 'EKO-AI';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+
+  // render **bold** and color BUY/SELL keywords
+  let html = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\b(BUY|BELI)\b/g, '<span class="bull">$1</span>')
+    .replace(/\b(SELL|JUAL)\b/g, '<span class="bear">$1</span>')
+    .replace(/\b(BULLISH)\b/g, '<span class="bull">$1</span>')
+    .replace(/\b(BEARISH)\b/g, '<span class="bear">$1</span>');
+
+  bubble.innerHTML = html;
+  div.appendChild(label);
+  div.appendChild(bubble);
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('messages');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg assistant';
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = 'EKO-AI';
+  const ind = document.createElement('div');
+  ind.className = 'typing-indicator';
+  ind.innerHTML = '<span></span><span></span><span></span>';
+  wrap.appendChild(label);
+  wrap.appendChild(ind);
+  container.appendChild(wrap);
+  container.scrollTop = container.scrollHeight;
+  return wrap;
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+</script>
+</body>
+</html>
